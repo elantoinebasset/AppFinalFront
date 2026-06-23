@@ -84,6 +84,25 @@ function showSuccess(message) {
   successMessage.value = message;
 }
 
+
+// Functions validation
+function validationLabel(item) {
+  return item.validated ? 'Terminé' : 'En cours';
+}
+
+function validationTitle(item) {
+  return item.validated ? 'Validé' : 'Cliquer pour valider';
+}
+
+function validationColor(item) {
+  return item.validated ? 'green' : 'red';
+}
+
+function toggleItemValidation(item) {
+  item.validated = !item.validated;
+}
+
+
 async function initialize() {
   resetMessages();
   isLoading.value = true;
@@ -350,9 +369,10 @@ onMounted(() => {
           <h2>Utilisateur sélectionné</h2>
           <p v-if="selectedUser">
             <strong
-              >{{ selectedUser.firstName }} {{ selectedUser.lastName }}</strong
-            ><br />
-            {{ selectedUser.username }} · {{ selectedUser.email }}
+              >{{ selectedUser.firstName }} {{ selectedUser.lastName }}</strong>
+            <br>
+            <!-- {{ selectedUser.username }} -->
+            {{ selectedUser.email }}
           </p>
           <p v-else>Aucun utilisateur disponible pour le moment.</p>
         </div>
@@ -367,7 +387,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="overview-grid">
+          <!-- <div class="overview-grid">
             <article class="overview-card accent-card">
               <h3>Architecture front</h3>
               <p>
@@ -385,7 +405,7 @@ onMounted(() => {
                 <li>Ajouter des événements dans cet emploi du temps</li>
               </ul>
             </article>
-          </div>
+          </div> -->
 
           <div class="timeline-card">
             <h3>Emplois du temps chargés</h3>
@@ -393,10 +413,13 @@ onMounted(() => {
               Aucun emploi du temps pour l’utilisateur sélectionné.
             </div>
             <div v-else class="schedule-list compact-list">
-              <article
+
+                <button
                 v-for="schedule in schedules"
                 :key="schedule.id"
                 class="schedule-card"
+                  type="button"
+                  @click="activeTab = 'schedules'"
                 :style="{ '--schedule-color': schedule.color || '#1f7a8c' }"
               >
                 <div class="schedule-header">
@@ -408,9 +431,10 @@ onMounted(() => {
                     >{{ schedule.items?.length ?? 0 }} items</span
                   >
                 </div>
-              </article>
+            </button>
             </div>
           </div>
+
         </section>
 
         <section
@@ -501,7 +525,7 @@ onMounted(() => {
                     user.isActive ? 'Actif' : 'Inactif'
                   }}</span>
                 </span>
-                <span>{{ user.username }}</span>
+                <!-- <span>{{ user.username }} </span> -->
                 <span>{{ user.email }}</span>
               </button>
             </div>
@@ -527,7 +551,7 @@ onMounted(() => {
                   v-model="scheduleForm.name"
                   required
                   type="text"
-                  placeholder="Semaine BTS SIO"
+                  placeholder="..."
                 />
               </label>
               <label>
@@ -535,7 +559,7 @@ onMounted(() => {
                 <textarea
                   v-model="scheduleForm.description"
                   rows="4"
-                  placeholder="Cours, réunions, devoirs..."
+                  placeholder="..."
                 ></textarea>
               </label>
               <label>
@@ -565,7 +589,7 @@ onMounted(() => {
                   v-model="itemForm.title"
                   required
                   type="text"
-                  placeholder="Réunion projet"
+                  placeholder="..."
                 />
               </label>
               <label>
@@ -573,7 +597,7 @@ onMounted(() => {
                 <textarea
                   v-model="itemForm.description"
                   rows="3"
-                  placeholder="Détail de l’événement"
+                  placeholder="..."
                 ></textarea>
               </label>
               <div class="field-row">
@@ -617,15 +641,15 @@ onMounted(() => {
                 <input
                   v-model="itemForm.location"
                   type="text"
-                  placeholder="Salle A102"
+                  placeholder="..."
                 />
               </label>
               <label>
-                Notes
+                Infos complémentaires
                 <textarea
                   v-model="itemForm.notes"
                   rows="3"
-                  placeholder="Notes complémentaires"
+                  placeholder="..."
                 ></textarea>
               </label>
               <button
@@ -689,15 +713,22 @@ onMounted(() => {
                       <span class="badge muted-badge">{{
                         priorityLabel(item.priority)
                       }}</span>
+                      <span
+                        :title="validationTitle(item)"
+                        :style="{ cursor: 'pointer', fontSize: '1.2em', color: validationColor(item) }"
+                        @click.stop="toggleItemValidation(item)"
+                      >{{ validationLabel(item) }}</span>
+                      <span>{{ item.validated ? '✔️' : '❌' }}</span>
+
                     </div>
-                    <p>{{ item.description || 'Sans description' }}</p>
+                    <p>{{ item.description || 'Description non définie' }}</p>
                     <p>
                       {{ formatDate(item.startTime) }} →
                       {{ formatDate(item.endTime) }}
                     </p>
                     <p>
-                      {{ item.category || 'Sans catégorie' }} ·
-                      {{ item.location || 'Sans lieu' }}
+                      {{ item.category || 'Catégorie non définie' }} ·
+                      {{ item.location || 'Lieu non défini' }}
                     </p>
                   </article>
                   <div v-if="!schedule.items?.length" class="empty-inline">
@@ -712,7 +743,7 @@ onMounted(() => {
               <p>
                 <strong>{{ selectedSchedule.name }}</strong>
               </p>
-              <p>{{ selectedSchedule.description || 'Sans description' }}</p>
+              <p>{{ selectedSchedule.description || 'Description non définie' }}</p>
               <p>
                 {{ selectedSchedule.items?.length ?? 0 }} événements associés
               </p>
