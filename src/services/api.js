@@ -105,7 +105,10 @@ export const schedulerApi = {
       method: 'DELETE',
     })
   },
-  getdeleteItem(scheduleId, itemId) {
-    return this.deleteItem(scheduleId, itemId)
+
+  deleteUser(userId) {
+    return request(`/users/${userId}`, {
+      method: 'DELETE',
+    })
   }
 }

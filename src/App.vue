@@ -114,6 +114,28 @@ function deleteLabel() {
   return 'Supprimer cet evenement'
 }
 
+async function deleteUser(user){
+    if (!user) {
+        errorMessage.value = 'Aucun utilisateur selectionne pour la suppression.'
+        return
+    }
+    resetMessages()
+
+    try{
+        await schedulerApi.deleteUser(user.id)
+        const index = users.value.findIndex((u) => u.id === user.id)
+        if (index !== -1) {
+            users.value.splice(index, 1)
+            if (selectedUserId.value === user.id) {
+                selectedUserId.value = users.value.length > 0 ? users.value[0].id : null
+                showSuccess(`Utilisateur ${user.username} supprime.`)
+            }
+        }
+    } catch (error) {
+        showError(error)
+    }
+}
+
 async function deleteItem(item) {
   if (!selectedScheduleId.value) {
     errorMessage.value = 'Selectionne un emploi du temps avant de supprimer un evenement.'
@@ -590,6 +612,7 @@ onMounted(() => {
                     <span class="badge muted-badge">{{ user.isActive ? 'Actif' : 'Inactif' }}</span>
                   </span>
                   <span>{{ user.email }}</span>
+                  <button @click="deleteUser(user)"></button>
                 </button>
               </div>
             </div>
@@ -699,7 +722,7 @@ onMounted(() => {
               <div class="section-heading">
                 <div>
                   <p class="eyebrow">Liste</p>
-                  <h2>Emplois du temps de l utilisateur</h2>
+                  <h2>Emploi du temps de l'utilisateur</h2>
                 </div>
               </div>
 
