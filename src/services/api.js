@@ -1,9 +1,26 @@
 const API_ROOT = '/api'
+const TOKEN_STORAGE_KEY = 'scheduler_auth_token'
+
+function getStoredToken() {
+  return localStorage.getItem(TOKEN_STORAGE_KEY)
+}
+
+function setStoredToken(token) {
+  if (!token) {
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    return
+  }
+  localStorage.setItem(TOKEN_STORAGE_KEY, token)
+}
 
 async function request(path, options = {}) {
+  const token = getStoredToken()
+  const authHeader = token ? { Authorization: `Bearer ${token}` } : {}
+
   const response = await fetch(`${API_ROOT}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...authHeader,
       ...(options.headers ?? {}),
     },
     ...options,
@@ -29,6 +46,33 @@ async function request(path, options = {}) {
 }
 
 export const schedulerApi = {
+  register(payload) {
+    return request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then((response) => {
+      setStoredToken(response.token)
+      return response
+    })
+  },
+  login(payload) {
+    return request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }).then((response) => {
+      setStoredToken(response.token)
+      return response
+    })
+  },
+  getCurrentUser() {
+    return request('/auth/me')
+  },
+  logout() {
+    setStoredToken(null)
+  },
+  hasToken() {
+    return Boolean(getStoredToken())
+  },
   getHealth() {
     return request('/health')
   },
@@ -56,4 +100,12 @@ export const schedulerApi = {
       body: JSON.stringify(item),
     })
   },
+  deleteItem(scheduleId, itemId) {
+    return request(`/schedules/${scheduleId}/items/${itemId}`, {
+      method: 'DELETE',
+    })
+  },
+  getdeleteItem(scheduleId, itemId) {
+    return this.deleteItem(scheduleId, itemId)
+  }
 }

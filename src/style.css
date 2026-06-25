@@ -170,6 +170,49 @@ h3 {
     justify-content: center;
 }
 
+.auth-screen {
+  min-height: calc(100vh - 64px);
+  display: grid;
+  place-items: center;
+}
+
+.auth-card {
+  width: min(620px, 100%);
+  border-radius: var(--radius-xl);
+  padding: 30px;
+  backdrop-filter: blur(22px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.auth-eyebrow {
+  font-size: 1rem;
+  justify-content: flex-start;
+}
+
+.auth-subtitle {
+  margin-top: 8px;
+  margin-bottom: 20px;
+  color: var(--muted);
+}
+
+.auth-toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.auth-toggle .tab-button {
+  flex: 1;
+  text-align: center;
+}
+
+.auth-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .API-Infant-status {
   display: flex;
   flex-direction: column;
