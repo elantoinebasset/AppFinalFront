@@ -493,10 +493,10 @@ onMounted(() => {
               {{ health.status }}
             </div>
             <p>{{ health.message }}</p>
-            <p v-if="currentUser">Connecte en tant que {{ currentUser.username }}</p>
+            <p v-if="currentUser">Connecté en tant que {{ currentUser.username }}</p>
             <div class="auth-actions">
-              <button class="secondary-button" type="button" @click="initializeAppData">Rafraichir</button>
-              <button class="secondary-button" type="button" @click="logout">Se deconnecter</button>
+              <button class="secondary-button" type="button" @click="initializeAppData">Rafraîchir</button>
+              <button class="secondary-button" type="button" @click="logout">Se déconnecter</button>
             </div>
           </div>
         </div>
@@ -537,13 +537,13 @@ onMounted(() => {
           </div>
 
           <div class="message-stack">
-            <p v-if="isLoading" class="message info">Chargement des donnees...</p>
+            <p v-if="isLoading" class="message info">Chargement des données...</p>
             <p v-if="errorMessage" class="message error">{{ errorMessage }}</p>
             <p v-if="successMessage" class="message success">{{ successMessage }}</p>
           </div>
 
           <div class="selection-card">
-            <h2>Utilisateur selectionne</h2>
+            <h2>Utilisateur sélectionné</h2>
             <p v-if="selectedUser">
               <strong>{{ selectedUser.firstName }} {{ selectedUser.lastName }}</strong>
               <br>
@@ -558,13 +558,13 @@ onMounted(() => {
             <div class="section-heading">
               <div>
                 <p class="eyebrow">Accueil</p>
-                <h2>Vue d ensemble du planning</h2>
+                <h2>Vue d'ensemble du planning</h2>
               </div>
             </div>
 
             <div class="timeline-card">
-              <h3>Emplois du temps charges</h3>
-              <div v-if="schedules.length === 0" class="empty-state">Aucun emploi du temps pour l utilisateur selectionne.</div>
+              <h3>Emplois du temps chargés</h3>
+              <div v-if="schedules.length === 0" class="empty-state">Aucun emploi du temps pour l'utilisateur sélectionné.</div>
               <div v-else class="schedule-list compact-list">
                 <button
                   v-for="schedule in schedules"
@@ -579,7 +579,7 @@ onMounted(() => {
                       <h4>{{ schedule.name }}</h4>
                       <p>{{ schedule.description || 'Sans description' }}</p>
                     </div>
-                    <span class="badge">{{ schedule.items?.length ?? 0 }} items</span>
+                    <span class="badge">{{ schedule.items?.length ?? 0 }} événements</span>
                   </div>
                 </button>
               </div>
@@ -596,7 +596,7 @@ onMounted(() => {
                 </div>
               </div>
 
-              <div v-if="users.length === 0" class="empty-state">Aucun utilisateur enregistre pour le moment.</div>
+              <div v-if="users.length === 0" class="empty-state">Aucun utilisateur enregistré pour le moment.</div>
 
               <div v-else class="user-list">
                 <button
@@ -623,11 +623,11 @@ onMounted(() => {
                   <p class="eyebrowInfo">Informations utilisateurs</p>
                   <div class="user-card selected">
                     <strong><h4 class="textInfo">Utilisateur</h4>{{ selectedUser ? selectedUser.firstName + ' ' + selectedUser.lastName :
-                     'Aucun utilisateur selectionne' }}</strong>
+                     'Aucun utilisateur sélectionné' }}</strong>
                     <h4 class="textInfo">Email</h4><p>{{ selectedUser ? selectedUser.email : '' }}</p>
-                    <h4 class="textInfo">Status</h4><p>{{ selectedUser ? (selectedUser.isActive ? 'Actif' : 'Inactif') : '' }}</p>
-                    <h4 class="textInfo">Taches Actives</h4><p>{{ selectedUser ? totalItems : '' }}</p>
-                    <h4 class="textInfo">Role</h4><p>{{ selectedUser ? selectedUser.role : '' }}</p>
+                    <h4 class="textInfo">Statut</h4><p>{{ selectedUser ? (selectedUser.isActive ? 'Actif' : 'Inactif') : '' }}</p>
+                    <h4 class="textInfo">Tâches Actives</h4><p>{{ selectedUser ? totalItems : '' }}</p>
+                    <h4 class="textInfo">Rôle</h4><p>{{ selectedUser ? selectedUser.role : '' }}</p>
                     <button class="primary-button" @click="activeTab = 'schedules'">Voir l'emploi du temps de {{ selectedUser ? selectedUser.firstName : '' }}</button>
                   </div>
                 </div>
@@ -642,7 +642,7 @@ onMounted(() => {
               <div class="section-heading">
                 <div>
                   <p class="eyebrow">Emplois du temps</p>
-                  <h2>Creer un emploi du temps</h2>
+                  <h2>Créer un emploi du temps</h2>
                 </div>
               </div>
 
@@ -660,14 +660,14 @@ onMounted(() => {
                   <input v-model="scheduleForm.color" type="color" />
                 </label>
                 <button class="primary-button" type="submit" :disabled="isSubmitting">
-                  {{ isSubmitting ? 'Creation...' : 'Creer l emploi du temps' }}
+                  {{ isSubmitting ? 'Création...' : 'Créer l\'emploi du temps' }}
                 </button>
               </form>
 
               <div class="section-heading nested-heading">
                 <div>
-                  <p class="eyebrow">Evenements</p>
-                  <h2>Ajouter un evenement</h2>
+                  <p class="eyebrow">Événements</p>
+                  <h2>Ajouter un événement</h2>
                 </div>
               </div>
 
@@ -713,7 +713,7 @@ onMounted(() => {
                   <textarea v-model="itemForm.notes" rows="3" placeholder="Notes"></textarea>
                 </label>
                 <button class="primary-button" type="submit" :disabled="isSubmitting">
-                  {{ isSubmitting ? 'Ajout...' : 'Ajouter l evenement' }}
+                  {{ isSubmitting ? 'Ajout...' : 'Ajouter l\'événement' }}
                 </button>
               </form>
             </div>
@@ -726,7 +726,7 @@ onMounted(() => {
                 </div>
               </div>
 
-              <div v-if="schedules.length === 0" class="empty-state">Aucun emploi du temps a afficher.</div>
+              <div v-if="schedules.length === 0" class="empty-state">Aucun emploi du temps à afficher.</div>
 
               <div v-else class="schedule-list">
                 <button
@@ -743,11 +743,10 @@ onMounted(() => {
                       <h3>{{ schedule.name }}</h3>
                       <p>{{ schedule.description || 'Sans description' }}</p>
                     </div>
-                    <span class="badge">{{ schedule.isActive ? 'Actif' : 'Inactif' }}</span>
                   </div>
 
                   <p class="schedule-meta">
-                    Cree le {{ formatDate(schedule.createdAt) }} · {{ schedule.items?.length ?? 0 }} evenements
+                    Créé le {{ formatDate(schedule.createdAt) }} · {{ schedule.items?.length ?? 0 }} événements
                   </p>
 
                   <div v-if="schedule.id === selectedScheduleId" class="item-list">
@@ -765,23 +764,16 @@ onMounted(() => {
                         <span :title="deleteLabel(item)" @click.stop="deleteItem(item)">🗑️</span>
                       </div>
 
-                      <p>{{ item.description || 'Description non definie' }}</p>
+                      <p>{{ item.description || 'Description non définie' }}</p>
                       <p>{{ formatDate(item.startTime) }} → {{ formatDate(item.endTime) }}</p>
-                      <p>{{ item.category || 'Categorie non definie' }} · {{ item.location || 'Lieu non defini' }}</p>
+                      <p>{{ item.category || 'Catégorie non définie' }} · {{ item.location || 'Lieu non défini' }}</p>
                     </article>
-                    <div v-if="!schedule.items?.length" class="empty-inline">Aucun evenement dans cet emploi du temps.</div>
+                    <div v-if="!schedule.items?.length" class="empty-inline">Aucun événement dans cet emploi du temps.</div>
                   </div>
                 </button>
               </div>
 
-              <div v-if="selectedSchedule" class="selection-card details-card">
-                <h3>Detail de la selection</h3>
-                <p>
-                  <strong>{{ selectedSchedule.name }}</strong>
-                </p>
-                <p>{{ selectedSchedule.description || 'Description non definie' }}</p>
-                <p>{{ selectedSchedule.items?.length ?? 0 }} evenements associes</p>
-              </div>
+
             </div>
           </section>
         </section>
