@@ -505,11 +505,11 @@ onMounted(() => {
               <strong>{{ schedules.length }}</strong>
             </article>
             <article class="metric-card">
-              <span class="metric-label">Evenements</span>
+              <span class="metric-label">Événements</span>
               <strong>{{ totalItems }}</strong>
             </article>
             <article class="metric-card">
-              <span class="metric-label">Termines</span>
+              <span class="metric-label">Accomplis</span>
               <strong>{{ completedItems }}</strong>
             </article>
           </div>
@@ -564,41 +564,9 @@ onMounted(() => {
             </div>
           </section>
 
-          <section v-else-if="activeTab === 'users'" class="content-section two-column-section">
-            <div>
-              <div class="section-heading">
-                <div>
-                  <p class="eyebrow">Utilisateurs</p>
-                  <h2>Creer et selectionner un utilisateur</h2>
-                </div>
-              </div>
-
-              <form class="form-card" @submit.prevent="submitUser">
-                <label>
-                  Username
-                  <input v-model="userForm.username" required type="text" placeholder="jean.dupont" />
-                </label>
-                <label>
-                  Email
-                  <input v-model="userForm.email" required type="email" placeholder="jean@mail.com" />
-                </label>
-                <div class="field-row">
-                  <label>
-                    Prenom
-                    <input v-model="userForm.firstName" required type="text" placeholder="Jean" />
-                  </label>
-                  <label>
-                    Nom
-                    <input v-model="userForm.lastName" required type="text" placeholder="Dupont" />
-                  </label>
-                </div>
-                <button class="primary-button" type="submit" :disabled="isSubmitting">
-                  {{ isSubmitting ? 'Creation...' : 'Creer l utilisateur' }}
-                </button>
-              </form>
-            </div>
-
-            <div>
+          <!-- Users Section -->
+          <section v-else-if="activeTab === 'users'" class="content-section two-column-section2">
+                        <div>
               <div class="section-heading">
                 <div>
                   <p class="eyebrow">Liste</p>
@@ -625,6 +593,25 @@ onMounted(() => {
                 </button>
               </div>
             </div>
+
+            <div>
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrowInfo">Informations utilisateurs</p>
+                  <div class="user-card selected">
+                    <strong><h4 class="textInfo">Utilisateur</h4>{{ selectedUser ? selectedUser.firstName + ' ' + selectedUser.lastName :
+                     'Aucun utilisateur selectionne' }}</strong>
+                    <p><h4 class="textInfo">Email</h4>{{ selectedUser ? selectedUser.email : '' }}</p>
+                    <p><h4 class="textInfo">Status</h4>{{ selectedUser ? (selectedUser.isActive ? 'Actif' : 'Inactif') : '' }}</p>
+                    <p><h4 class="textInfo">Taches Actives</h4>{{ selectedUser ? totalItems : '' }}</p>
+                    <p><h4 class="textInfo">Role</h4>{{ selectedUser ? selectedUser.role : '' }}</p>
+                    <button class="primary-button" @click="activeTab = 'schedules'">Voir l'emploi du temps de {{ selectedUser ? selectedUser.firstName : '' }}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
           </section>
 
           <section v-else class="content-section two-column-section schedules-section">

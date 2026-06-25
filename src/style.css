@@ -129,6 +129,18 @@ code {
   margin-bottom: 10px;
 }
 
+.eyebrowInfo {
+  display: flex;
+  text-align: center;
+  align-items: center;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent-dark);
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
 h1,
 h2,
 h3,
@@ -149,6 +161,13 @@ h2 {
 
 h3 {
   font-size: 1.2rem;
+}
+
+.textInfo{
+    font-size: 1.3rem;
+    color: #1f8a53;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 2px 0;
 }
 
 .hero-copy,
@@ -280,6 +299,7 @@ h3 {
   border: 0;
   border-radius: 999px;
   transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+  margin-top: 10px;
 }
 
 .tab-button {
@@ -368,6 +388,12 @@ h3 {
 
 .overview-grid,
 .two-column-section {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.two-column-section2{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
