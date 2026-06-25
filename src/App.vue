@@ -601,10 +601,10 @@ onMounted(() => {
                   <div class="user-card selected">
                     <strong><h4 class="textInfo">Utilisateur</h4>{{ selectedUser ? selectedUser.firstName + ' ' + selectedUser.lastName :
                      'Aucun utilisateur selectionne' }}</strong>
-                    <p><h4 class="textInfo">Email</h4>{{ selectedUser ? selectedUser.email : '' }}</p>
-                    <p><h4 class="textInfo">Status</h4>{{ selectedUser ? (selectedUser.isActive ? 'Actif' : 'Inactif') : '' }}</p>
-                    <p><h4 class="textInfo">Taches Actives</h4>{{ selectedUser ? totalItems : '' }}</p>
-                    <p><h4 class="textInfo">Role</h4>{{ selectedUser ? selectedUser.role : '' }}</p>
+                    <h4 class="textInfo">Email</h4><p>{{ selectedUser ? selectedUser.email : '' }}</p>
+                    <h4 class="textInfo">Status</h4><p>{{ selectedUser ? (selectedUser.isActive ? 'Actif' : 'Inactif') : '' }}</p>
+                    <h4 class="textInfo">Taches Actives</h4><p>{{ selectedUser ? totalItems : '' }}</p>
+                    <h4 class="textInfo">Role</h4><p>{{ selectedUser ? selectedUser.role : '' }}</p>
                     <button class="primary-button" @click="activeTab = 'schedules'">Voir l'emploi du temps de {{ selectedUser ? selectedUser.firstName : '' }}</button>
                   </div>
                 </div>
