@@ -84,10 +84,9 @@ function showSuccess(message) {
   successMessage.value = message;
 }
 
-
-// Functions validation
+// Ma fonction pour faire basculer la validation d'un item
 function validationLabel(item) {
-  return item.validated ? 'Terminé' : 'En cours';
+  return item.validated ? 'Terminé ✔️' : 'En cours ❌';
 }
 
 function validationTitle(item) {
@@ -102,6 +101,23 @@ function toggleItemValidation(item) {
   item.validated = !item.validated;
 }
 
+// Ma fonction pour supprimer un item
+function deleteLabel(item) {
+  return 'Supprimer cet événement';
+}
+
+function deleteItem(item) {
+  const schedule = schedules.value.find(
+    (schedule) => schedule.id === selectedScheduleId.value,
+  );
+  if (schedule) {
+    const index = schedule.items.findIndex((i) => i.id === item.id);
+    if (index !== -1) {
+      schedule.items.splice(index, 1);
+      showSuccess(`Événement ${item.title} supprimé.`);
+    }
+  }
+}
 
 async function initialize() {
   resetMessages();
@@ -708,19 +724,29 @@ onMounted(() => {
                     :key="item.id"
                     class="item-card"
                   >
+
+                    <!-- Ordre de priorité -->
                     <div class="item-header">
                       <strong>{{ item.title }}</strong>
                       <span class="badge muted-badge">{{
                         priorityLabel(item.priority)
                       }}</span>
+
+                    <!-- Bouton de validation -->
                       <span
                         :title="validationTitle(item)"
                         :style="{ cursor: 'pointer', fontSize: '1.2em', color: validationColor(item) }"
                         @click.stop="toggleItemValidation(item)"
                       >{{ validationLabel(item) }}</span>
-                      <span>{{ item.validated ? '✔️' : '❌' }}</span>
 
+                    <!-- Bouton de suppression -->
+                      <span
+                      :title="deleteLabel(item)"
+                      @click.stop="deleteItem(item)"
+                      >🗑️</span>
                     </div>
+
+                    <!-- Description, horaires et catégorie -->
                     <p>{{ item.description || 'Description non définie' }}</p>
                     <p>
                       {{ formatDate(item.startTime) }} →
