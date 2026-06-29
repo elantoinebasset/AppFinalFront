@@ -95,11 +95,11 @@ function showSuccess(message) {
 }
 
 function validationLabel(item) {
-  return item.validated ? 'Termine ✔' : 'En cours'
+  return item.validated ? 'Validé ✔' : 'En cours'
 }
 
 function validationTitle(item) {
-  return item.validated ? 'Valide' : 'Cliquer pour valider'
+  return item.validated ? 'Validé' : 'Cliquer pour valider'
 }
 
 function validationColor(item) {
@@ -110,13 +110,22 @@ function toggleItemValidation(item) {
   item.validated = !item.validated
 }
 
-function deleteLabel() {
-  return 'Supprimer cet evenement'
+function deleteLabel(user, item, schedule) {
+    if (item) {
+        return 'Supprimer cet événement'
+    }
+    if (user) {
+        return 'Supprimer cet utilisateur'
+    }
+    if (schedule) {
+        return 'Supprimer cet emploi du temps'
+    }
 }
+
 
 async function deleteUser(user){
     if (!user) {
-        errorMessage.value = 'Aucun utilisateur selectionne pour la suppression.'
+        errorMessage.value = 'Aucun utilisateur sélectionné pour la suppression.'
         return
     }
     resetMessages()
@@ -128,7 +137,7 @@ async function deleteUser(user){
             users.value.splice(index, 1)
             if (selectedUserId.value === user.id) {
                 selectedUserId.value = users.value.length > 0 ? users.value[0].id : null
-                showSuccess(`Utilisateur ${user.username} supprime.`)
+                showSuccess(`Utilisateur ${user.username} supprimé.`)
             }
         }
     } catch (error) {
@@ -138,7 +147,7 @@ async function deleteUser(user){
 
 async function deleteItem(item) {
   if (!selectedScheduleId.value) {
-    errorMessage.value = 'Selectionne un emploi du temps avant de supprimer un evenement.'
+    errorMessage.value = 'Sélectionne un emploi du temps avant de supprimer un événement.'
     return
   }
 
@@ -155,7 +164,36 @@ async function deleteItem(item) {
       }
     }
 
-    showSuccess(`Evenement ${item.title} supprime.`)
+    showSuccess(`Événement ${item.title} supprimé.`)
+  } catch (error) {
+    showError(error)
+  }
+}
+
+async function deleteSchedule(schedule) {
+  if (!schedule) {
+    errorMessage.value = 'Aucun emploi du temps sélectionné pour la suppression.'
+    return
+  }
+
+  if (!selectedUserId.value) {
+    errorMessage.value = 'Aucun utilisateur sélectionné pour la suppression.'
+    return
+  }
+
+  resetMessages()
+
+  try {
+    await schedulerApi.deleteSchedule(selectedUserId.value, schedule.id)
+
+    const index = schedules.value.findIndex((s) => s.id === schedule.id)
+    if (index !== -1) {
+      schedules.value.splice(index, 1)
+      if (selectedScheduleId.value === schedule.id) {
+        selectedScheduleId.value = schedules.value.length > 0 ? schedules.value[0].id : null
+        showSuccess(`Emploi du temps ${schedule.name} supprimé.`)
+      }
+    }
   } catch (error) {
     showError(error)
   }
@@ -329,7 +367,7 @@ async function submitSchedule() {
       ...scheduleForm,
       isActive: true,
     })
-    showSuccess(`Emploi du temps ${createdSchedule.name} cree.`)
+    showSuccess(`Emploi du temps ${createdSchedule.name} créé.`)
     Object.assign(scheduleForm, {
       name: '',
       description: '',
@@ -611,8 +649,11 @@ onMounted(() => {
                     <strong>{{ user.firstName }} {{ user.lastName }}</strong>
                     <span class="badge muted-badge">{{ user.isActive ? 'Actif' : 'Inactif' }}</span>
                   </span>
+
+                  <span class="user-card-top">
                   <span>{{ user.email }}</span>
-                  <button @click="deleteUser(user)"></button>
+                  <span :title="deleteLabel(user)" @click="deleteUser(user)">🗑️</span>
+                  </span>
                 </button>
               </div>
             </div>
@@ -681,22 +722,22 @@ onMounted(() => {
                   <textarea v-model="itemForm.description" rows="3" placeholder="Description"></textarea>
                 </label>
                 <div class="field-row">
-                  <label>
-                    Debut
+                  <label class="datetime-label">
+                    Début
                     <input v-model="itemForm.startTime" required type="datetime-local" />
                   </label>
-                  <label>
+                  <label class="datetime-label">
                     Fin
                     <input v-model="itemForm.endTime" required type="datetime-local" />
                   </label>
                 </div>
                 <div class="field-row">
                   <label>
-                    Categorie
+                    Catégorie
                     <input v-model="itemForm.category" type="text" placeholder="Cours" />
                   </label>
                   <label>
-                    Priorite
+                    Priorité
                     <select v-model="itemForm.priority">
                       <option :value="0">Basse</option>
                       <option :value="1">Moyenne</option>
@@ -709,7 +750,7 @@ onMounted(() => {
                   <input v-model="itemForm.location" type="text" placeholder="Salle A102" />
                 </label>
                 <label>
-                  Infos complementaires
+                  Infos complémentaires
                   <textarea v-model="itemForm.notes" rows="3" placeholder="Notes"></textarea>
                 </label>
                 <button class="primary-button" type="submit" :disabled="isSubmitting">
@@ -743,6 +784,7 @@ onMounted(() => {
                       <h3>{{ schedule.name }}</h3>
                       <p>{{ schedule.description || 'Sans description' }}</p>
                     </div>
+                    <span :title="deleteLabel(null, null, schedule)" @click.stop="deleteSchedule(schedule)">🗑️</span>
                   </div>
 
                   <p class="schedule-meta">
@@ -761,7 +803,7 @@ onMounted(() => {
                         >
                           {{ validationLabel(item) }}
                         </span>
-                        <span :title="deleteLabel(item)" @click.stop="deleteItem(item)">🗑️</span>
+                        <span :title="deleteLabel(null, item)" @click.stop="deleteItem(item)">🗑️</span>
                       </div>
 
                       <p>{{ item.description || 'Description non définie' }}</p>

@@ -110,5 +110,11 @@ export const schedulerApi = {
     return request(`/users/${userId}`, {
       method: 'DELETE',
     })
+  },
+
+  deleteSchedule(userId, scheduleId) {
+    return request(`/users/${userId}/schedules/${scheduleId}`, {
+      method: 'DELETE',
+    })
   }
 }
