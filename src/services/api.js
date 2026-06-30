@@ -106,6 +106,13 @@ export const schedulerApi = {
     })
   },
 
+  modifyItem(scheduleId, itemId, item) {
+    return request(`/schedules/${scheduleId}/items/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(item),
+    })
+  },
+
   deleteUser(userId) {
     return request(`/users/${userId}`, {
       method: 'DELETE',
@@ -116,5 +123,12 @@ export const schedulerApi = {
     return request(`/users/${userId}/schedules/${scheduleId}`, {
       method: 'DELETE',
     })
-  }
+  },
+
+  modifySchedule(userId, scheduleId, schedule) {
+    return request(`/users/${userId}/schedules/${scheduleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(schedule),
+    })
+  },
 }

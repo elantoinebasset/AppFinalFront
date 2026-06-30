@@ -51,6 +51,26 @@ const scheduleForm = reactive({
   color: '#1f7a8c',
 })
 
+const editingScheduleId = ref(null)
+const editScheduleForm = reactive({
+  name: '',
+  description: '',
+  color: '#1f7a8c',
+  isActive: true,
+})
+
+const editingItemId = ref(null)
+const editItemForm = reactive({
+  title: '',
+  description: '',
+  location: '',
+  category: 'Travail',
+  startTime: '',
+  endTime: '',
+  priority: 1,
+  notes: '',
+})
+
 const itemForm = reactive({
   title: '',
   description: '',
@@ -119,6 +139,18 @@ function deleteLabel(user, item, schedule) {
     }
     if (schedule) {
         return 'Supprimer cet emploi du temps'
+    }
+}
+
+function modifyLabel(user, item, schedule) {
+    if (item) {
+        return 'Modifier cet événement'
+    }
+    if (user) {
+        return 'Modifier cet utilisateur'
+    }
+    if (schedule) {
+        return 'Modifier cet emploi du temps'
     }
 }
 
@@ -196,6 +228,166 @@ async function deleteSchedule(schedule) {
     }
   } catch (error) {
     showError(error)
+  }
+}
+
+async function modifySchedule(schedule) {
+  if (!schedule) {
+    errorMessage.value = 'Aucun emploi du temps sélectionné pour la modification.'
+    return
+  }
+
+  if (!selectedUserId.value) {
+    errorMessage.value = 'Aucun utilisateur sélectionné pour la modification.'
+    return
+  }
+
+  resetMessages()
+
+  try {
+    const updatedSchedule = await schedulerApi.modifySchedule(selectedUserId.value, schedule.id, {
+      name: schedule.name,
+      description: schedule.description,
+      color: schedule.color,
+      isActive: schedule.isActive,
+    })
+
+    const index = schedules.value.findIndex((s) => s.id === updatedSchedule.id)
+    if (index !== -1) {
+      schedules.value[index] = updatedSchedule
+      showSuccess(`Emploi du temps ${updatedSchedule.name} modifié.`)
+    }
+  } catch (error) {
+    showError(error)
+  }
+}
+
+function openEditSchedule(schedule) {
+  resetMessages()
+  editingScheduleId.value = schedule.id
+  Object.assign(editScheduleForm, {
+    name: schedule.name ?? '',
+    description: schedule.description ?? '',
+    color: schedule.color ?? '#1f7a8c',
+    isActive: schedule.isActive ?? true,
+  })
+}
+
+function closeEditSchedule() {
+  editingScheduleId.value = null
+}
+
+async function submitEditSchedule() {
+  if (!editingScheduleId.value) {
+    return
+  }
+
+  if (!selectedUserId.value) {
+    errorMessage.value = 'Aucun utilisateur sélectionné pour la modification.'
+    return
+  }
+
+  resetMessages()
+  isSubmitting.value = true
+
+  try {
+    const updatedSchedule = await schedulerApi.modifySchedule(
+      selectedUserId.value,
+      editingScheduleId.value,
+      {
+        name: editScheduleForm.name,
+        description: editScheduleForm.description,
+        color: editScheduleForm.color,
+        isActive: editScheduleForm.isActive,
+      },
+    )
+
+    const index = schedules.value.findIndex((s) => s.id === updatedSchedule.id)
+    if (index !== -1) {
+      schedules.value[index] = updatedSchedule
+    }
+    showSuccess(`Emploi du temps ${updatedSchedule.name} modifié.`)
+    closeEditSchedule()
+  } catch (error) {
+    showError(error)
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+function toInputDateTime(value) {
+  if (!value) {
+    return ''
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+  const offset = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+}
+
+function openEditItem(item) {
+  resetMessages()
+  editingItemId.value = item.id
+  Object.assign(editItemForm, {
+    title: item.title ?? '',
+    description: item.description ?? '',
+    location: item.location ?? '',
+    category: item.category ?? 'Travail',
+    startTime: toInputDateTime(item.startTime),
+    endTime: toInputDateTime(item.endTime),
+    priority: item.priority ?? 1,
+    notes: item.notes ?? '',
+  })
+}
+
+function closeEditItem() {
+  editingItemId.value = null
+}
+
+async function submitEditItem() {
+  if (!editingItemId.value) {
+    return
+  }
+
+  if (!selectedScheduleId.value) {
+    errorMessage.value = 'Aucun emploi du temps sélectionné pour la modification.'
+    return
+  }
+
+  resetMessages()
+  isSubmitting.value = true
+
+  try {
+    const updatedItem = await schedulerApi.modifyItem(
+      selectedScheduleId.value,
+      editingItemId.value,
+      {
+        title: editItemForm.title,
+        description: editItemForm.description,
+        location: editItemForm.location,
+        category: editItemForm.category,
+        startTime: editItemForm.startTime,
+        endTime: editItemForm.endTime,
+        priority: Number(editItemForm.priority),
+        notes: editItemForm.notes,
+      },
+    )
+
+    const schedule = schedules.value.find((s) => s.id === selectedScheduleId.value)
+    if (schedule) {
+      const index = schedule.items.findIndex((entry) => entry.id === updatedItem.id)
+      if (index !== -1) {
+        schedule.items[index] = updatedItem
+      }
+    }
+    showSuccess(`Événement ${updatedItem.title} modifié.`)
+    closeEditItem()
+  } catch (error) {
+    showError(error)
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -690,11 +882,11 @@ onMounted(() => {
               <form class="form-card" @submit.prevent="submitSchedule">
                 <label>
                   Nom
-                  <input v-model="scheduleForm.name" required type="text" placeholder="Planning semaine" />
+                  <input v-model="scheduleForm.name" required type="text" placeholder="..." />
                 </label>
                 <label>
                   Description
-                  <textarea v-model="scheduleForm.description" rows="4" placeholder="Description"></textarea>
+                  <textarea v-model="scheduleForm.description" rows="4" placeholder="..."></textarea>
                 </label>
                 <label>
                   Couleur
@@ -715,11 +907,11 @@ onMounted(() => {
               <form class="form-card" @submit.prevent="submitItem">
                 <label>
                   Titre
-                  <input v-model="itemForm.title" required type="text" placeholder="Cours Java" />
+                  <input v-model="itemForm.title" required type="text" placeholder="..." />
                 </label>
                 <label>
                   Description
-                  <textarea v-model="itemForm.description" rows="3" placeholder="Description"></textarea>
+                  <textarea v-model="itemForm.description" rows="3" placeholder="..."></textarea>
                 </label>
                 <div class="field-row">
                   <label class="datetime-label">
@@ -734,7 +926,7 @@ onMounted(() => {
                 <div class="field-row">
                   <label>
                     Catégorie
-                    <input v-model="itemForm.category" type="text" placeholder="Cours" />
+                    <input v-model="itemForm.category" type="text" placeholder="..." />
                   </label>
                   <label>
                     Priorité
@@ -747,11 +939,11 @@ onMounted(() => {
                 </div>
                 <label>
                   Lieu
-                  <input v-model="itemForm.location" type="text" placeholder="Salle A102" />
+                  <input v-model="itemForm.location" type="text" placeholder="..." />
                 </label>
                 <label>
                   Infos complémentaires
-                  <textarea v-model="itemForm.notes" rows="3" placeholder="Notes"></textarea>
+                  <textarea v-model="itemForm.notes" rows="3" placeholder="..."></textarea>
                 </label>
                 <button class="primary-button" type="submit" :disabled="isSubmitting">
                   {{ isSubmitting ? 'Ajout...' : 'Ajouter l\'événement' }}
@@ -784,7 +976,10 @@ onMounted(() => {
                       <h3>{{ schedule.name }}</h3>
                       <p>{{ schedule.description || 'Sans description' }}</p>
                     </div>
-                    <span :title="deleteLabel(null, null, schedule)" @click.stop="deleteSchedule(schedule)">🗑️</span>
+                    <div class="schedule-actions">
+                      <span :title="modifyLabel(null, null, schedule)" @click.stop="openEditSchedule(schedule)"> ✏️ </span>
+                      <span :title="deleteLabel(null, null, schedule)" @click.stop="deleteSchedule(schedule)">🗑️</span>
+                    </div>
                   </div>
 
                   <p class="schedule-meta">
@@ -803,6 +998,7 @@ onMounted(() => {
                         >
                           {{ validationLabel(item) }}
                         </span>
+                        <span :title="modifyLabel(null, item)" @click.stop="openEditItem(item)"> ✏️ </span>
                         <span :title="deleteLabel(null, item)" @click.stop="deleteItem(item)">🗑️</span>
                       </div>
 
@@ -821,5 +1017,99 @@ onMounted(() => {
         </section>
       </main>
     </template>
+
+    <div v-if="editingScheduleId" class="modal-overlay" @click.self="closeEditSchedule">
+      <div class="modal-card" role="dialog" aria-modal="true">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Modifier</p>
+            <h2>Modifier l'emploi du temps</h2>
+          </div>
+        </div>
+
+        <form class="form-card" @submit.prevent="submitEditSchedule">
+          <label>
+            Nom
+            <input v-model="editScheduleForm.name" required type="text" placeholder="..." />
+          </label>
+          <label>
+            Description
+            <textarea v-model="editScheduleForm.description" rows="4" placeholder="..."></textarea>
+          </label>
+          <label>
+            Couleur
+            <input v-model="editScheduleForm.color" type="color" />
+          </label>
+          <div class="modal-actions">
+            <button class="secondary-button" type="button" @click="closeEditSchedule">Annuler</button>
+            <button class="primary-button" type="submit" :disabled="isSubmitting">
+              {{ isSubmitting ? 'Enregistrement...' : 'Enregistrer' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="editingItemId" class="modal-overlay" @click.self="closeEditItem">
+      <div class="modal-card" role="dialog" aria-modal="true">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Modifier</p>
+            <h2>Modifier l'événement</h2>
+          </div>
+        </div>
+
+        <form class="form-card" @submit.prevent="submitEditItem">
+          <label>
+            Titre
+            <input v-model="editItemForm.title" required type="text" placeholder="..." />
+          </label>
+          <label>
+            Description
+            <textarea v-model="editItemForm.description" rows="3" placeholder="..."></textarea>
+          </label>
+          <div class="field-row2">
+            <label class="datetime-label">
+              Début
+              <input v-model="editItemForm.startTime" required type="datetime-local" />
+            </label>
+          </div>
+          <div class="field-row2">
+            <label class="datetime-label">
+              Fin
+              <input v-model="editItemForm.endTime" required type="datetime-local" />
+            </label>
+          </div>
+          <div class="field-row">
+            <label>
+              Catégorie
+              <input v-model="editItemForm.category" type="text" placeholder="..." />
+            </label>
+            <label>
+              Priorité
+              <select v-model="editItemForm.priority">
+                <option :value="0">Basse</option>
+                <option :value="1">Moyenne</option>
+                <option :value="2">Haute</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            Lieu
+            <input v-model="editItemForm.location" type="text" placeholder="..." />
+          </label>
+          <label>
+            Infos complémentaires
+            <textarea v-model="editItemForm.notes" rows="3" placeholder="..."></textarea>
+          </label>
+          <div class="modal-actions">
+            <button class="secondary-button" type="button" @click="closeEditItem">Annuler</button>
+            <button class="primary-button" type="submit" :disabled="isSubmitting">
+              {{ isSubmitting ? 'Enregistrement...' : 'Enregistrer' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
