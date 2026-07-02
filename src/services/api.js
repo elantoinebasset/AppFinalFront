@@ -1,5 +1,41 @@
 const API_ROOT = '/api'
 const TOKEN_STORAGE_KEY = 'scheduler_auth_token'
+const ADMIN_USERNAMES = (import.meta.env.VITE_ADMIN_USERNAMES ?? '')
+  .split(',')
+  .map((value) => value.trim().toLowerCase())
+  .filter(Boolean)
+
+function normalizeRole(role) {
+  if (typeof role !== 'string') {
+    return null
+  }
+
+  const upperRole = role.toUpperCase()
+  if (upperRole === 'ADMIN' || upperRole === 'USER') {
+    return upperRole
+  }
+
+  return null
+}
+
+function inferRoleFromUsername(username) {
+  if (typeof username !== 'string') {
+    return null
+  }
+
+  return ADMIN_USERNAMES.includes(username.toLowerCase()) ? 'ADMIN' : null
+}
+
+function normalizeUser(user) {
+  if (!user || typeof user !== 'object') {
+    return user
+  }
+
+  return {
+    ...user,
+    role: normalizeRole(user.role) ?? inferRoleFromUsername(user.username) ?? 'USER',
+  }
+}
 
 function getStoredToken() {
   return localStorage.getItem(TOKEN_STORAGE_KEY)
@@ -38,7 +74,9 @@ async function request(path, options = {}) {
   if (!response.ok) {
     const message = typeof payload === 'object' && payload?.message
       ? payload.message
-      : 'Une erreur est survenue lors de l’appel API.'
+      : typeof payload === 'string' && payload.trim()
+        ? payload
+        : 'Une erreur est survenue lors de l’appel API.'
     throw new Error(message)
   }
 
@@ -52,7 +90,10 @@ export const schedulerApi = {
       body: JSON.stringify(payload),
     }).then((response) => {
       setStoredToken(response.token)
-      return response
+      return {
+        ...response,
+        user: normalizeUser(response.user),
+      }
     })
   },
   login(payload) {
@@ -61,11 +102,26 @@ export const schedulerApi = {
       body: JSON.stringify(payload),
     }).then((response) => {
       setStoredToken(response.token)
-      return response
+      return {
+        ...response,
+        user: normalizeUser(response.user),
+      }
+    })
+  },
+  googleLogin(credential) {
+    return request('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    }).then((response) => {
+      setStoredToken(response.token)
+      return {
+        ...response,
+        user: normalizeUser(response.user),
+      }
     })
   },
   getCurrentUser() {
-    return request('/auth/me')
+    return request('/auth/me').then((user) => normalizeUser(user))
   },
   logout() {
     setStoredToken(null)
@@ -77,13 +133,13 @@ export const schedulerApi = {
     return request('/health')
   },
   getUsers() {
-    return request('/users')
+    return request('/users').then((users) => users.map((user) => normalizeUser(user)))
   },
   createUser(user) {
     return request('/users', {
       method: 'POST',
       body: JSON.stringify(user),
-    })
+    }).then((createdUser) => normalizeUser(createdUser))
   },
   getSchedulesByUser(userId) {
     return request(`/users/${userId}/schedules`)

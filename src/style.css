@@ -343,6 +343,40 @@ h3 {
   margin-bottom: 20px;
 }
 
+.google-auth {
+  margin: 18px 0;
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.auth-divider span {
+  padding: 0 12px;
+}
+
+.google-button {
+  display: flex;
+  justify-content: center;
+}
+
 .message {
   border-radius: 14px;
   padding: 12px 14px;

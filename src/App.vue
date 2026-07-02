@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { schedulerApi } from './services/api'
 
 const tabs = [
@@ -7,6 +7,8 @@ const tabs = [
   { id: 'users', label: 'Utilisateurs' },
   { id: 'schedules', label: 'Emplois du temps' },
 ]
+
+const ADMIN_ROLE = 'ADMIN'
 
 const activeTab = ref('dashboard')
 const isLoading = ref(false)
@@ -23,6 +25,12 @@ const selectedScheduleId = ref(null)
 const isAuthenticated = ref(false)
 const currentUser = ref(null)
 const authMode = ref('login')
+
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+const googleButton = ref(null)
+const googleEnabled = computed(
+  () => Boolean(googleClientId) && !googleClientId.includes('your-client-id'),
+)
 
 const loginForm = reactive({
   username: '',
@@ -86,6 +94,20 @@ const selectedUser = computed(
   () => users.value.find((user) => user.id === selectedUserId.value) ?? null,
 )
 
+const currentUserRole = computed(() => {
+  const role = currentUser.value?.role
+  return typeof role === 'string' ? role.toUpperCase() : 'USER'
+})
+
+const isAdmin = computed(() => currentUserRole.value === ADMIN_ROLE)
+
+const visibleTabs = computed(() => {
+  if (isAdmin.value) {
+    return tabs
+  }
+  return tabs.filter((tab) => tab.id !== 'users')
+})
+
 const selectedSchedule = computed(
   () => schedules.value.find((schedule) => schedule.id === selectedScheduleId.value) ?? null,
 )
@@ -126,6 +148,13 @@ function validationColor(item) {
   return item.validated ? 'green' : 'red'
 }
 
+function canManageSelectedUser() {
+  if (isAdmin.value) {
+    return true
+  }
+  return selectedUserId.value === currentUser.value?.id
+}
+
 function toggleItemValidation(item) {
   item.validated = !item.validated
 }
@@ -156,6 +185,11 @@ function modifyLabel(user, item, schedule) {
 
 
 async function deleteUser(user){
+  if (!isAdmin.value) {
+    errorMessage.value = 'Action reservee aux administrateurs.'
+    return
+  }
+
     if (!user) {
         errorMessage.value = 'Aucun utilisateur sélectionné pour la suppression.'
         return
@@ -210,6 +244,11 @@ async function deleteSchedule(schedule) {
 
   if (!selectedUserId.value) {
     errorMessage.value = 'Aucun utilisateur sélectionné pour la suppression.'
+    return
+  }
+
+  if (!canManageSelectedUser()) {
+    errorMessage.value = 'Tu ne peux modifier que tes propres emplois du temps.'
     return
   }
 
@@ -397,7 +436,11 @@ async function initializeAppData() {
 
   try {
     health.value = await schedulerApi.getHealth()
-    await refreshUsers()
+    if (isAdmin.value) {
+      await refreshUsers()
+    } else {
+      await initializeUserData()
+    }
   } catch (error) {
     showError(error)
     health.value = {
@@ -407,6 +450,20 @@ async function initializeAppData() {
   } finally {
     isLoading.value = false
   }
+}
+
+async function initializeUserData() {
+  if (!currentUser.value) {
+    users.value = []
+    schedules.value = []
+    selectedUserId.value = null
+    selectedScheduleId.value = null
+    return
+  }
+
+  users.value = [currentUser.value]
+  selectedUserId.value = currentUser.value.id
+  await loadSchedulesForSelectedUser()
 }
 
 async function tryAutoLogin() {
@@ -459,6 +516,51 @@ async function submitRegister() {
   }
 }
 
+async function handleGoogleCredential(response) {
+  resetMessages()
+  authSubmitting.value = true
+
+  try {
+    const result = await schedulerApi.googleLogin(response.credential)
+    currentUser.value = result.user
+    isAuthenticated.value = true
+    showSuccess(`Bienvenue ${result.user.firstName}.`)
+    await initializeAppData()
+  } catch (error) {
+    showError(error)
+  } finally {
+    authSubmitting.value = false
+  }
+}
+
+function initGoogleSignIn(attempt = 0) {
+  if (!googleEnabled.value) {
+    return
+  }
+
+  if (!window.google?.accounts?.id) {
+    if (attempt < 20) {
+      setTimeout(() => initGoogleSignIn(attempt + 1), 250)
+    }
+    return
+  }
+
+  window.google.accounts.id.initialize({
+    client_id: googleClientId,
+    callback: handleGoogleCredential,
+  })
+
+  if (googleButton.value) {
+    window.google.accounts.id.renderButton(googleButton.value, {
+      theme: 'outline',
+      size: 'large',
+      width: 320,
+      text: 'signin_with',
+      shape: 'pill',
+    })
+  }
+}
+
 function logout() {
   schedulerApi.logout()
   isAuthenticated.value = false
@@ -472,6 +574,11 @@ function logout() {
 }
 
 async function refreshUsers() {
+  if (!isAdmin.value) {
+    await initializeUserData()
+    return
+  }
+
   const fetchedUsers = await schedulerApi.getUsers()
   users.value = fetchedUsers
 
@@ -510,6 +617,10 @@ async function loadSchedulesForSelectedUser() {
 }
 
 async function handleUserSelection(userId) {
+  if (!isAdmin.value) {
+    return
+  }
+
   resetMessages()
   selectedUserId.value = userId
   selectedScheduleId.value = null
@@ -522,6 +633,11 @@ async function handleUserSelection(userId) {
 }
 
 async function submitUser() {
+  if (!isAdmin.value) {
+    errorMessage.value = 'Action reservee aux administrateurs.'
+    return
+  }
+
   resetMessages()
   isSubmitting.value = true
 
@@ -548,6 +664,11 @@ async function submitUser() {
 async function submitSchedule() {
   if (!selectedUserId.value) {
     errorMessage.value = 'Cree ou selectionne un utilisateur avant d ajouter un emploi du temps.'
+    return
+  }
+
+  if (!canManageSelectedUser()) {
+    errorMessage.value = 'Tu ne peux creer des emplois du temps que pour ton compte.'
     return
   }
 
@@ -632,6 +753,13 @@ function priorityLabel(priority) {
 
 onMounted(() => {
   tryAutoLogin()
+  initGoogleSignIn()
+})
+
+watch(isAdmin, (admin) => {
+  if (!admin && activeTab.value === 'users') {
+    activeTab.value = 'dashboard'
+  }
 })
 </script>
 
@@ -704,6 +832,11 @@ onMounted(() => {
           </button>
         </form>
 
+        <div v-if="googleEnabled" class="google-auth">
+          <div class="auth-divider"><span>ou</span></div>
+          <div ref="googleButton" class="google-button"></div>
+        </div>
+
         <div class="message-stack">
           <p v-if="errorMessage" class="message error">{{ errorMessage }}</p>
           <p v-if="successMessage" class="message success">{{ successMessage }}</p>
@@ -723,7 +856,7 @@ onMounted(() => {
               {{ health.status }}
             </div>
             <p>{{ health.message }}</p>
-            <p v-if="currentUser">Connecté en tant que {{ currentUser.username }}</p>
+            <p v-if="currentUser">Connecté en tant que {{ currentUser.username }} ({{ currentUserRole }})</p>
             <div class="auth-actions">
               <button class="secondary-button" type="button" @click="initializeAppData">Rafraîchir</button>
               <button class="secondary-button" type="button" @click="logout">Se déconnecter</button>
@@ -736,7 +869,7 @@ onMounted(() => {
         <section class="panel sidebar-panel">
           <nav class="tab-list" aria-label="Navigation principale">
             <button
-              v-for="tab in tabs"
+              v-for="tab in visibleTabs"
               :key="tab.id"
               type="button"
               class="tab-button"
@@ -844,7 +977,7 @@ onMounted(() => {
 
                   <span class="user-card-top">
                   <span>{{ user.email }}</span>
-                  <span :title="deleteLabel(user)" @click="deleteUser(user)">🗑️</span>
+                  <span v-if="isAdmin" :title="deleteLabel(user)" @click="deleteUser(user)">🗑️</span>
                   </span>
                 </button>
               </div>
