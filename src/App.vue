@@ -4,6 +4,7 @@ import { schedulerApi } from './services/api'
 
 const tabs = [
   { id: 'dashboard', label: 'Accueil' },
+  { id: 'calendar', label: 'Calendrier' },
   { id: 'users', label: 'Utilisateurs' },
   { id: 'schedules', label: 'Emplois du temps' },
 ]
@@ -127,6 +128,113 @@ const completedItems = computed(() =>
     0,
   ),
 )
+
+// ===== Calendrier mensuel =====
+const weekDayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+const calendarCursor = ref(new Date())
+
+// Tous les evenements de tous les emplois du temps, avec la couleur de leur EDT
+const allEvents = computed(() =>
+  schedules.value.flatMap((schedule) =>
+    (schedule.items ?? []).map((item) => ({
+      ...item,
+      scheduleId: schedule.id,
+      scheduleName: schedule.name,
+      color: schedule.color || '#1f7a8c',
+    })),
+  ),
+)
+
+const calendarTitle = computed(() => {
+  const label = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(
+    calendarCursor.value,
+  )
+  return label.charAt(0).toUpperCase() + label.slice(1)
+})
+
+function sameDay(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
+function formatTime(value) {
+  if (!value) {
+    return ''
+  }
+  return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(
+    new Date(value),
+  )
+}
+
+// Grille du mois : cases du lundi au dimanche, incluant les jours des mois adjacents
+const calendarCells = computed(() => {
+  const cursor = calendarCursor.value
+  const year = cursor.getFullYear()
+  const month = cursor.getMonth()
+  const firstOfMonth = new Date(year, month, 1)
+  const offset = (firstOfMonth.getDay() + 6) % 7 // 0 = lundi
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const weeksCount = Math.ceil((offset + daysInMonth) / 7)
+  const today = new Date()
+  const cells = []
+
+  for (let i = 0; i < weeksCount * 7; i++) {
+    const date = new Date(year, month, 1 - offset + i)
+    const events = allEvents.value
+      .filter((event) => event.startTime && sameDay(new Date(event.startTime), date))
+      .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+    cells.push({
+      key: date.toISOString(),
+      date,
+      day: date.getDate(),
+      inMonth: date.getMonth() === month,
+      isToday: sameDay(date, today),
+      events,
+    })
+  }
+
+  return cells
+})
+
+function prevMonth() {
+  calendarCursor.value = new Date(
+    calendarCursor.value.getFullYear(),
+    calendarCursor.value.getMonth() - 1,
+    1,
+  )
+}
+
+function nextMonth() {
+  calendarCursor.value = new Date(
+    calendarCursor.value.getFullYear(),
+    calendarCursor.value.getMonth() + 1,
+    1,
+  )
+}
+
+function goToday() {
+  calendarCursor.value = new Date()
+}
+
+// Clic sur un evenement du calendrier : ouvre la modale d'edition
+function openEventFromCalendar(event) {
+  selectedScheduleId.value = event.scheduleId
+  openEditItem(event)
+}
+
+// Clic sur une case du calendrier : pre-remplit un nouvel evenement ce jour-la
+function startEventOnDay(cell) {
+  const start = new Date(cell.date)
+  start.setHours(9, 0, 0, 0)
+  const end = new Date(start)
+  end.setHours(10, 0, 0, 0)
+  itemForm.startTime = toInputDateTime(start)
+  itemForm.endTime = toInputDateTime(end)
+  activeTab.value = 'schedules'
+}
 
 // Helpers d'affichage et de messages
 function resetMessages() {
@@ -968,6 +1076,52 @@ watch(isAdmin, (admin) => {
                     <span class="badge">{{ schedule.items?.length ?? 0 }} événements</span>
                   </div>
                 </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Onglet: Calendrier -->
+          <section v-else-if="activeTab === 'calendar'" class="content-section">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Calendrier</p>
+                <h2>{{ calendarTitle }}</h2>
+              </div>
+              <div class="calendar-controls">
+                <button class="secondary-button" type="button" title="Mois précédent" @click="prevMonth">‹</button>
+                <button class="secondary-button" type="button" @click="goToday">Aujourd'hui</button>
+                <button class="secondary-button" type="button" title="Mois suivant" @click="nextMonth">›</button>
+              </div>
+            </div>
+
+            <div class="calendar">
+              <div class="calendar-weekdays">
+                <span v-for="label in weekDayLabels" :key="label">{{ label }}</span>
+              </div>
+              <div class="calendar-grid">
+                <div
+                  v-for="cell in calendarCells"
+                  :key="cell.key"
+                  class="calendar-cell"
+                  :class="{ 'out-month': !cell.inMonth, 'is-today': cell.isToday }"
+                  @click="startEventOnDay(cell)"
+                >
+                  <span class="calendar-daynum">{{ cell.day }}</span>
+                  <div class="calendar-events">
+                    <button
+                      v-for="event in cell.events"
+                      :key="event.id"
+                      type="button"
+                      class="calendar-event"
+                      :style="{ '--event-color': event.color }"
+                      :title="`${event.title} · ${formatTime(event.startTime)} → ${formatTime(event.endTime)}`"
+                      @click.stop="openEventFromCalendar(event)"
+                    >
+                      <span class="calendar-event-time">{{ formatTime(event.startTime) }}</span>
+                      <span class="calendar-event-title">{{ event.title }}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
