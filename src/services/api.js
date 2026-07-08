@@ -1,4 +1,4 @@
-const API_ROOT = '/api'
+const API_ROOT = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '')
 const TOKEN_STORAGE_KEY = 'scheduler_auth_token'
 const ADMIN_USERNAMES = (import.meta.env.VITE_ADMIN_USERNAMES ?? '')
   .split(',')

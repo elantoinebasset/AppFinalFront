@@ -10,6 +10,7 @@ const tabs = [
 
 const ADMIN_ROLE = 'ADMIN'
 
+// Etat global de l'application
 const activeTab = ref('dashboard')
 const isLoading = ref(false)
 const isSubmitting = ref(false)
@@ -32,6 +33,7 @@ const googleEnabled = computed(
   () => Boolean(googleClientId) && !googleClientId.includes('your-client-id'),
 )
 
+// Formulaires
 const loginForm = reactive({
   username: '',
   password: '',
@@ -56,6 +58,7 @@ const userForm = reactive({
 const scheduleForm = reactive({
   name: '',
   description: '',
+  priority: 1,
   color: '#1f7a8c',
 })
 
@@ -63,6 +66,7 @@ const editingScheduleId = ref(null)
 const editScheduleForm = reactive({
   name: '',
   description: '',
+  priority: 1,
   color: '#1f7a8c',
   isActive: true,
 })
@@ -90,6 +94,7 @@ const itemForm = reactive({
   notes: '',
 })
 
+// Donnees derivees (computed)
 const selectedUser = computed(
   () => users.value.find((user) => user.id === selectedUserId.value) ?? null,
 )
@@ -123,6 +128,7 @@ const completedItems = computed(() =>
   ),
 )
 
+// Helpers d'affichage et de messages
 function resetMessages() {
   errorMessage.value = ''
   successMessage.value = ''
@@ -134,6 +140,27 @@ function showError(error) {
 
 function showSuccess(message) {
   successMessage.value = message
+}
+
+function formatDate(value) {
+  if (!value) {
+    return 'Non defini'
+  }
+
+  return new Intl.DateTimeFormat('fr-FR', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
+
+function priorityLabel(priority) {
+  if (priority === 2) {
+    return 'Haute'
+  }
+  if (priority === 1) {
+    return 'Moyenne'
+  }
+  return 'Basse'
 }
 
 function validationLabel(item) {
@@ -153,10 +180,6 @@ function canManageSelectedUser() {
     return true
   }
   return selectedUserId.value === currentUser.value?.id
-}
-
-function toggleItemValidation(item) {
-  item.validated = !item.validated
 }
 
 function deleteLabel(user, item, schedule) {
@@ -183,250 +206,61 @@ function modifyLabel(user, item, schedule) {
     }
 }
 
+// Chargement des donnees
+async function initializeUserData() {
+  if (!currentUser.value) {
+    users.value = []
+    schedules.value = []
+    selectedUserId.value = null
+    selectedScheduleId.value = null
+    return
+  }
 
-async function deleteUser(user){
+  users.value = [currentUser.value]
+  selectedUserId.value = currentUser.value.id
+  await loadSchedulesForSelectedUser()
+}
+
+async function refreshUsers() {
   if (!isAdmin.value) {
-    errorMessage.value = 'Action reservee aux administrateurs.'
+    await initializeUserData()
     return
   }
 
-    if (!user) {
-        errorMessage.value = 'Aucun utilisateur sélectionné pour la suppression.'
-        return
-    }
-    resetMessages()
+  const fetchedUsers = await schedulerApi.getUsers()
+  users.value = fetchedUsers
 
-    try{
-        await schedulerApi.deleteUser(user.id)
-        const index = users.value.findIndex((u) => u.id === user.id)
-        if (index !== -1) {
-            users.value.splice(index, 1)
-            if (selectedUserId.value === user.id) {
-                selectedUserId.value = users.value.length > 0 ? users.value[0].id : null
-                showSuccess(`Utilisateur ${user.username} supprimé.`)
-            }
-        }
-    } catch (error) {
-        showError(error)
-    }
+  if (fetchedUsers.length === 0) {
+    selectedUserId.value = null
+    schedules.value = []
+    selectedScheduleId.value = null
+    return
+  }
+
+  if (!selectedUserId.value || !fetchedUsers.some((user) => user.id === selectedUserId.value)) {
+    selectedUserId.value = fetchedUsers[0].id
+  }
+
+  await loadSchedulesForSelectedUser()
 }
 
-async function deleteItem(item) {
-  if (!selectedScheduleId.value) {
-    errorMessage.value = 'Sélectionne un emploi du temps avant de supprimer un événement.'
-    return
-  }
-
-  resetMessages()
-
-  try {
-    await schedulerApi.deleteItem(selectedScheduleId.value, item.id)
-
-    const schedule = schedules.value.find((value) => value.id === selectedScheduleId.value)
-    if (schedule) {
-      const index = schedule.items.findIndex((entry) => entry.id === item.id)
-      if (index !== -1) {
-        schedule.items.splice(index, 1)
-      }
-    }
-
-    showSuccess(`Événement ${item.title} supprimé.`)
-  } catch (error) {
-    showError(error)
-  }
-}
-
-async function deleteSchedule(schedule) {
-  if (!schedule) {
-    errorMessage.value = 'Aucun emploi du temps sélectionné pour la suppression.'
-    return
-  }
-
+async function loadSchedulesForSelectedUser() {
   if (!selectedUserId.value) {
-    errorMessage.value = 'Aucun utilisateur sélectionné pour la suppression.'
+    schedules.value = []
+    selectedScheduleId.value = null
     return
   }
 
-  if (!canManageSelectedUser()) {
-    errorMessage.value = 'Tu ne peux modifier que tes propres emplois du temps.'
+  const fetchedSchedules = await schedulerApi.getSchedulesByUser(selectedUserId.value)
+  schedules.value = fetchedSchedules
+
+  if (fetchedSchedules.length === 0) {
+    selectedScheduleId.value = null
     return
   }
 
-  resetMessages()
-
-  try {
-    await schedulerApi.deleteSchedule(selectedUserId.value, schedule.id)
-
-    const index = schedules.value.findIndex((s) => s.id === schedule.id)
-    if (index !== -1) {
-      schedules.value.splice(index, 1)
-      if (selectedScheduleId.value === schedule.id) {
-        selectedScheduleId.value = schedules.value.length > 0 ? schedules.value[0].id : null
-        showSuccess(`Emploi du temps ${schedule.name} supprimé.`)
-      }
-    }
-  } catch (error) {
-    showError(error)
-  }
-}
-
-async function modifySchedule(schedule) {
-  if (!schedule) {
-    errorMessage.value = 'Aucun emploi du temps sélectionné pour la modification.'
-    return
-  }
-
-  if (!selectedUserId.value) {
-    errorMessage.value = 'Aucun utilisateur sélectionné pour la modification.'
-    return
-  }
-
-  resetMessages()
-
-  try {
-    const updatedSchedule = await schedulerApi.modifySchedule(selectedUserId.value, schedule.id, {
-      name: schedule.name,
-      description: schedule.description,
-      color: schedule.color,
-      isActive: schedule.isActive,
-    })
-
-    const index = schedules.value.findIndex((s) => s.id === updatedSchedule.id)
-    if (index !== -1) {
-      schedules.value[index] = updatedSchedule
-      showSuccess(`Emploi du temps ${updatedSchedule.name} modifié.`)
-    }
-  } catch (error) {
-    showError(error)
-  }
-}
-
-function openEditSchedule(schedule) {
-  resetMessages()
-  editingScheduleId.value = schedule.id
-  Object.assign(editScheduleForm, {
-    name: schedule.name ?? '',
-    description: schedule.description ?? '',
-    color: schedule.color ?? '#1f7a8c',
-    isActive: schedule.isActive ?? true,
-  })
-}
-
-function closeEditSchedule() {
-  editingScheduleId.value = null
-}
-
-async function submitEditSchedule() {
-  if (!editingScheduleId.value) {
-    return
-  }
-
-  if (!selectedUserId.value) {
-    errorMessage.value = 'Aucun utilisateur sélectionné pour la modification.'
-    return
-  }
-
-  resetMessages()
-  isSubmitting.value = true
-
-  try {
-    const updatedSchedule = await schedulerApi.modifySchedule(
-      selectedUserId.value,
-      editingScheduleId.value,
-      {
-        name: editScheduleForm.name,
-        description: editScheduleForm.description,
-        color: editScheduleForm.color,
-        isActive: editScheduleForm.isActive,
-      },
-    )
-
-    const index = schedules.value.findIndex((s) => s.id === updatedSchedule.id)
-    if (index !== -1) {
-      schedules.value[index] = updatedSchedule
-    }
-    showSuccess(`Emploi du temps ${updatedSchedule.name} modifié.`)
-    closeEditSchedule()
-  } catch (error) {
-    showError(error)
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-function toInputDateTime(value) {
-  if (!value) {
-    return ''
-  }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-  const offset = date.getTimezoneOffset() * 60000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
-}
-
-function openEditItem(item) {
-  resetMessages()
-  editingItemId.value = item.id
-  Object.assign(editItemForm, {
-    title: item.title ?? '',
-    description: item.description ?? '',
-    location: item.location ?? '',
-    category: item.category ?? 'Travail',
-    startTime: toInputDateTime(item.startTime),
-    endTime: toInputDateTime(item.endTime),
-    priority: item.priority ?? 1,
-    notes: item.notes ?? '',
-  })
-}
-
-function closeEditItem() {
-  editingItemId.value = null
-}
-
-async function submitEditItem() {
-  if (!editingItemId.value) {
-    return
-  }
-
-  if (!selectedScheduleId.value) {
-    errorMessage.value = 'Aucun emploi du temps sélectionné pour la modification.'
-    return
-  }
-
-  resetMessages()
-  isSubmitting.value = true
-
-  try {
-    const updatedItem = await schedulerApi.modifyItem(
-      selectedScheduleId.value,
-      editingItemId.value,
-      {
-        title: editItemForm.title,
-        description: editItemForm.description,
-        location: editItemForm.location,
-        category: editItemForm.category,
-        startTime: editItemForm.startTime,
-        endTime: editItemForm.endTime,
-        priority: Number(editItemForm.priority),
-        notes: editItemForm.notes,
-      },
-    )
-
-    const schedule = schedules.value.find((s) => s.id === selectedScheduleId.value)
-    if (schedule) {
-      const index = schedule.items.findIndex((entry) => entry.id === updatedItem.id)
-      if (index !== -1) {
-        schedule.items[index] = updatedItem
-      }
-    }
-    showSuccess(`Événement ${updatedItem.title} modifié.`)
-    closeEditItem()
-  } catch (error) {
-    showError(error)
-  } finally {
-    isSubmitting.value = false
+  if (!selectedScheduleId.value || !fetchedSchedules.some((schedule) => schedule.id === selectedScheduleId.value)) {
+    selectedScheduleId.value = fetchedSchedules[0].id
   }
 }
 
@@ -452,20 +286,7 @@ async function initializeAppData() {
   }
 }
 
-async function initializeUserData() {
-  if (!currentUser.value) {
-    users.value = []
-    schedules.value = []
-    selectedUserId.value = null
-    selectedScheduleId.value = null
-    return
-  }
-
-  users.value = [currentUser.value]
-  selectedUserId.value = currentUser.value.id
-  await loadSchedulesForSelectedUser()
-}
-
+// Authentification
 async function tryAutoLogin() {
   if (!schedulerApi.hasToken()) {
     isAuthenticated.value = false
@@ -573,47 +394,32 @@ function logout() {
   resetMessages()
 }
 
-async function refreshUsers() {
+// Gestion des utilisateurs
+async function deleteUser(user){
   if (!isAdmin.value) {
-    await initializeUserData()
+    errorMessage.value = 'Action reservee aux administrateurs.'
     return
   }
 
-  const fetchedUsers = await schedulerApi.getUsers()
-  users.value = fetchedUsers
+    if (!user) {
+        errorMessage.value = 'Aucun utilisateur sélectionné pour la suppression.'
+        return
+    }
+    resetMessages()
 
-  if (fetchedUsers.length === 0) {
-    selectedUserId.value = null
-    schedules.value = []
-    selectedScheduleId.value = null
-    return
-  }
-
-  if (!selectedUserId.value || !fetchedUsers.some((user) => user.id === selectedUserId.value)) {
-    selectedUserId.value = fetchedUsers[0].id
-  }
-
-  await loadSchedulesForSelectedUser()
-}
-
-async function loadSchedulesForSelectedUser() {
-  if (!selectedUserId.value) {
-    schedules.value = []
-    selectedScheduleId.value = null
-    return
-  }
-
-  const fetchedSchedules = await schedulerApi.getSchedulesByUser(selectedUserId.value)
-  schedules.value = fetchedSchedules
-
-  if (fetchedSchedules.length === 0) {
-    selectedScheduleId.value = null
-    return
-  }
-
-  if (!selectedScheduleId.value || !fetchedSchedules.some((schedule) => schedule.id === selectedScheduleId.value)) {
-    selectedScheduleId.value = fetchedSchedules[0].id
-  }
+    try{
+        await schedulerApi.deleteUser(user.id)
+        const index = users.value.findIndex((u) => u.id === user.id)
+        if (index !== -1) {
+            users.value.splice(index, 1)
+            if (selectedUserId.value === user.id) {
+                selectedUserId.value = users.value.length > 0 ? users.value[0].id : null
+                showSuccess(`Utilisateur ${user.username} supprimé.`)
+            }
+        }
+    } catch (error) {
+        showError(error)
+    }
 }
 
 async function handleUserSelection(userId) {
@@ -661,6 +467,7 @@ async function submitUser() {
   }
 }
 
+// Gestion des emplois du temps
 async function submitSchedule() {
   if (!selectedUserId.value) {
     errorMessage.value = 'Cree ou selectionne un utilisateur avant d ajouter un emploi du temps.'
@@ -684,6 +491,7 @@ async function submitSchedule() {
     Object.assign(scheduleForm, {
       name: '',
       description: '',
+      priority: 1,
       color: '#1f7a8c',
     })
     await loadSchedulesForSelectedUser()
@@ -694,6 +502,156 @@ async function submitSchedule() {
   } finally {
     isSubmitting.value = false
   }
+}
+
+// Gestion des evenements
+async function deleteItem(item) {
+  if (!selectedScheduleId.value) {
+    errorMessage.value = 'Sélectionne un emploi du temps avant de supprimer un événement.'
+    return
+  }
+
+  resetMessages()
+
+  try {
+    await schedulerApi.deleteItem(selectedScheduleId.value, item.id)
+
+    const schedule = schedules.value.find((value) => value.id === selectedScheduleId.value)
+    if (schedule) {
+      const index = schedule.items.findIndex((entry) => entry.id === item.id)
+      if (index !== -1) {
+        schedule.items.splice(index, 1)
+      }
+    }
+
+    showSuccess(`Événement ${item.title} supprimé.`)
+  } catch (error) {
+    showError(error)
+  }
+}
+
+async function deleteSchedule(schedule) {
+  if (!schedule) {
+    errorMessage.value = 'Aucun emploi du temps sélectionné pour la suppression.'
+    return
+  }
+
+  if (!selectedUserId.value) {
+    errorMessage.value = 'Aucun utilisateur sélectionné pour la suppression.'
+    return
+  }
+
+  if (!canManageSelectedUser()) {
+    errorMessage.value = 'Tu ne peux modifier que tes propres emplois du temps.'
+    return
+  }
+
+  resetMessages()
+
+  try {
+    await schedulerApi.deleteSchedule(selectedUserId.value, schedule.id)
+
+    const index = schedules.value.findIndex((s) => s.id === schedule.id)
+    if (index !== -1) {
+      schedules.value.splice(index, 1)
+      if (selectedScheduleId.value === schedule.id) {
+        selectedScheduleId.value = schedules.value.length > 0 ? schedules.value[0].id : null
+        showSuccess(`Emploi du temps ${schedule.name} supprimé.`)
+      }
+    }
+  } catch (error) {
+    showError(error)
+  }
+}
+
+function openEditSchedule(schedule) {
+  resetMessages()
+  editingScheduleId.value = schedule.id
+  Object.assign(editScheduleForm, {
+    name: schedule.name ?? '',
+    description: schedule.description ?? '',
+    priority: schedule.priority ?? '',
+    color: schedule.color ?? '#1f7a8c',
+    isActive: schedule.isActive ?? true,
+  })
+}
+
+function closeEditSchedule() {
+  editingScheduleId.value = null
+}
+
+async function submitEditSchedule() {
+  if (!editingScheduleId.value) {
+    return
+  }
+
+  if (!selectedUserId.value) {
+    errorMessage.value = 'Aucun utilisateur sélectionné pour la modification.'
+    return
+  }
+
+  resetMessages()
+  isSubmitting.value = true
+
+  try {
+    const updatedSchedule = await schedulerApi.modifySchedule(
+      selectedUserId.value,
+      editingScheduleId.value,
+      {
+        name: editScheduleForm.name,
+        description: editScheduleForm.description,
+        priority: editScheduleForm.priority,
+        color: editScheduleForm.color,
+        isActive: editScheduleForm.isActive,
+      },
+    )
+
+    const index = schedules.value.findIndex((s) => s.id === updatedSchedule.id)
+    if (index !== -1) {
+      schedules.value[index] = updatedSchedule
+    }
+    showSuccess(`Emploi du temps ${updatedSchedule.name} modifié.`)
+    closeEditSchedule()
+  } catch (error) {
+    showError(error)
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+async function modifySchedule(schedule) {
+  if (!schedule) {
+    errorMessage.value = 'Aucun emploi du temps sélectionné pour la modification.'
+    return
+  }
+
+  if (!selectedUserId.value) {
+    errorMessage.value = 'Aucun utilisateur sélectionné pour la modification.'
+    return
+  }
+
+  resetMessages()
+
+  try {
+    const updatedSchedule = await schedulerApi.modifySchedule(selectedUserId.value, schedule.id, {
+      name: schedule.name,
+      description: schedule.description,
+      color: schedule.color,
+      isActive: schedule.isActive,
+    })
+
+    const index = schedules.value.findIndex((s) => s.id === updatedSchedule.id)
+    if (index !== -1) {
+      schedules.value[index] = updatedSchedule
+      showSuccess(`Emploi du temps ${updatedSchedule.name} modifié.`)
+    }
+  } catch (error) {
+    showError(error)
+  }
+}
+
+function toggleItemValidation(item) {
+  item.validated = !item.validated
 }
 
 async function submitItem() {
@@ -730,27 +688,83 @@ async function submitItem() {
   }
 }
 
-function formatDate(value) {
+function toInputDateTime(value) {
   if (!value) {
-    return 'Non defini'
+    return ''
   }
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+  const offset = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
 }
 
-function priorityLabel(priority) {
-  if (priority === 2) {
-    return 'Haute'
-  }
-  if (priority === 1) {
-    return 'Moyenne'
-  }
-  return 'Basse'
+function openEditItem(item) {
+  resetMessages()
+  editingItemId.value = item.id
+  Object.assign(editItemForm, {
+    title: item.title ?? '',
+    description: item.description ?? '',
+    location: item.location ?? '',
+    category: item.category ?? 'Travail',
+    startTime: toInputDateTime(item.startTime),
+    endTime: toInputDateTime(item.endTime),
+    priority: item.priority ?? 1,
+    notes: item.notes ?? '',
+  })
 }
 
+function closeEditItem() {
+  editingItemId.value = null
+}
+
+async function submitEditItem() {
+  if (!editingItemId.value) {
+    return
+  }
+
+  if (!selectedScheduleId.value) {
+    errorMessage.value = 'Aucun emploi du temps sélectionné pour la modification.'
+    return
+  }
+
+  resetMessages()
+  isSubmitting.value = true
+
+  try {
+    const updatedItem = await schedulerApi.modifyItem(
+      selectedScheduleId.value,
+      editingItemId.value,
+      {
+        title: editItemForm.title,
+        description: editItemForm.description,
+        location: editItemForm.location,
+        category: editItemForm.category,
+        startTime: editItemForm.startTime,
+        endTime: editItemForm.endTime,
+        priority: Number(editItemForm.priority),
+        notes: editItemForm.notes,
+      },
+    )
+
+    const schedule = schedules.value.find((s) => s.id === selectedScheduleId.value)
+    if (schedule) {
+      const index = schedule.items.findIndex((entry) => entry.id === updatedItem.id)
+      if (index !== -1) {
+        schedule.items[index] = updatedItem
+      }
+    }
+    showSuccess(`Événement ${updatedItem.title} modifié.`)
+    closeEditItem()
+  } catch (error) {
+    showError(error)
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// Lifecycle
 onMounted(() => {
   tryAutoLogin()
   initGoogleSignIn()
@@ -765,6 +779,9 @@ watch(isAdmin, (admin) => {
 
 <template>
   <div class="app-shell">
+
+
+    <!-- ===== Section: Ecran d'authentification ===== -->
     <section v-if="!isAuthenticated" class="auth-screen">
       <article class="auth-card">
         <p class="eyebrow auth-eyebrow">Time Scheduler</p>
@@ -845,6 +862,8 @@ watch(isAdmin, (admin) => {
     </section>
 
     <template v-else>
+      <!-- ===== Section: Espace connecte ===== -->
+      <!-- Entete et statut API -->
       <header class="hero-panel">
         <div class="Ap-Title">
           <h1 class="eyebrow">Time Scheduler</h1>
@@ -865,7 +884,9 @@ watch(isAdmin, (admin) => {
         </div>
       </header>
 
+      <!-- Contenu principal -->
       <main class="layout-grid">
+        <!-- Barre laterale: navigation, metriques, messages -->
         <section class="panel sidebar-panel">
           <nav class="tab-list" aria-label="Navigation principale">
             <button
@@ -916,7 +937,9 @@ watch(isAdmin, (admin) => {
           </div>
         </section>
 
+        <!-- Zone de contenu principale par onglet -->
         <section class="panel content-panel">
+          <!-- Onglet: Dashboard -->
           <section v-if="activeTab === 'dashboard'" class="content-section">
             <div class="section-heading">
               <div>
@@ -949,9 +972,9 @@ watch(isAdmin, (admin) => {
             </div>
           </section>
 
-          <!-- Users Section -->
+          <!-- Onglet: Utilisateurs -->
           <section v-else-if="activeTab === 'users'" class="content-section two-column-section2">
-                        <div>
+            <div>
               <div class="section-heading">
                 <div>
                   <p class="eyebrow">Liste</p>
@@ -999,10 +1022,9 @@ watch(isAdmin, (admin) => {
                 </div>
               </div>
             </div>
-
-
           </section>
 
+          <!-- Onglet: Emplois du temps et evenements -->
           <section v-else class="content-section two-column-section schedules-section">
             <div>
               <div class="section-heading">
@@ -1021,6 +1043,14 @@ watch(isAdmin, (admin) => {
                   Description
                   <textarea v-model="scheduleForm.description" rows="4" placeholder="..."></textarea>
                 </label>
+                <label>
+                    Priorité
+                    <select v-model="scheduleForm.priority">
+                      <option :value="0">Basse</option>
+                      <option :value="1">Moyenne</option>
+                      <option :value="2">Haute</option>
+                    </select>
+                  </label>
                 <label>
                   Couleur
                   <input v-model="scheduleForm.color" type="color" />
@@ -1118,6 +1148,8 @@ watch(isAdmin, (admin) => {
                   <p class="schedule-meta">
                     Créé le {{ formatDate(schedule.createdAt) }} · {{ schedule.items?.length ?? 0 }} événements
                   </p>
+                    <span class="badge muted-badge">{{ priorityLabel(scheduleForm.priority) }}</span>
+
 
                   <div v-if="schedule.id === selectedScheduleId" class="item-list">
                     <article v-for="item in schedule.items" :key="item.id" class="item-card">
@@ -1149,8 +1181,12 @@ watch(isAdmin, (admin) => {
           </section>
         </section>
       </main>
+
+      <!-- ===== Fin: Espace connecte ===== -->
     </template>
 
+    <!-- ===== Section: Modales ===== -->
+    <!-- Modale: edition d'un emploi du temps -->
     <div v-if="editingScheduleId" class="modal-overlay" @click.self="closeEditSchedule">
       <div class="modal-card" role="dialog" aria-modal="true">
         <div class="section-heading">
@@ -1183,6 +1219,7 @@ watch(isAdmin, (admin) => {
       </div>
     </div>
 
+    <!-- Modale: edition d'un evenement -->
     <div v-if="editingItemId" class="modal-overlay" @click.self="closeEditItem">
       <div class="modal-card" role="dialog" aria-modal="true">
         <div class="section-heading">
@@ -1244,5 +1281,6 @@ watch(isAdmin, (admin) => {
         </form>
       </div>
     </div>
+    <!-- ===== Fin: Modales ===== -->
   </div>
 </template>
