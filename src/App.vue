@@ -434,6 +434,22 @@ async function submitRegister() {
 
   try {
     const response = await schedulerApi.register({ ...registerForm })
+
+    // Pas de token = l'email doit d'abord etre verifie
+    if (!response.token) {
+      authMode.value = 'login'
+      Object.assign(registerForm, {
+        username: '',
+        email: '',
+        firstName: '',
+        lastName: '',
+        password: '',
+      })
+      showSuccess(
+        'Compte créé ! Un email de vérification a été envoyé. Vérifiez votre boîte mail, puis connectez-vous.',
+      )
+      return
+    }
     currentUser.value = response.user
     isAuthenticated.value = true
     showSuccess(`Compte cree. Bienvenue ${response.user.firstName}.`)
@@ -874,9 +890,27 @@ async function submitEditItem() {
 
 // Lifecycle
 onMounted(() => {
+  handleVerificationRedirect()
   tryAutoLogin()
   initGoogleSignIn()
 })
+
+// Message affiche apres le clic sur le lien de verification d'email
+function handleVerificationRedirect() {
+  const params = new URLSearchParams(window.location.search)
+  if (!params.has('verified')) {
+    return
+  }
+
+  if (params.get('verified') === '1') {
+    showSuccess('Ton adresse email a été vérifiée ✅ Tu peux maintenant te connecter.')
+  } else {
+    showError('Le lien de vérification est invalide ou a expiré.')
+  }
+
+  // Nettoie l'URL pour ne pas re-afficher le message au rechargement
+  window.history.replaceState({}, '', window.location.pathname)
+}
 
 watch(isAdmin, (admin) => {
   if (!admin && activeTab.value === 'users') {
